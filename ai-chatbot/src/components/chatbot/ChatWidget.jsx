@@ -24,6 +24,9 @@ import NovaAvatar from "./NovaAvatar";
 import { sendChatMessage,uploadDocument,
    } from "../../services/api";
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
 /* =====================================================
    LANGUAGES
 ===================================================== */
@@ -576,7 +579,8 @@ function ChatWidget({
   const [selectedFile, setSelectedFile] =
     useState(null);
 
-
+  const [documentSuggestions, setDocumentSuggestions] =
+  useState([]);
   /* =================================================
      REFS
   ================================================= */
@@ -1197,86 +1201,21 @@ const sendMessage = async (customMessage = null) => {
   ]);
 
   setMessage("");
-
   setIsTyping(true);
 
   try {
 
     let documentId = null;
 
-    /*
-     * STEP 1
-     * If a PDF is attached but has not been uploaded,
-     * upload it now.
-     */
-    if (selectedFile) {
+    // Use already uploaded document
+    if (selectedFile?.documentId) {
 
-      console.log("SELECTED FILE:", selectedFile);
+      documentId = selectedFile.documentId;
 
-      // Case 1: already uploaded
-      if (selectedFile.documentId) {
-
-        documentId = selectedFile.documentId;
-
-        console.log(
-          "USING EXISTING DOCUMENT ID:",
-          documentId
-        );
-
-      }
-
-      // Case 2: selectedFile is the browser File object
-      else if (selectedFile instanceof File) {
-
-        console.log(
-          "UPLOADING ATTACHED PDF..."
-        );
-
-        const uploadData =
-          await uploadDocument(selectedFile);
-
-        console.log(
-          "PDF UPLOAD SUCCESS:",
-          uploadData
-        );
-
-        documentId =
-          uploadData.document_id;
-
-        // Store document ID
-        setSelectedFile({
-          file: selectedFile,
-          name: selectedFile.name,
-          documentId: documentId,
-        });
-
-      }
-
-      // Case 3: object contains file but no documentId
-      else if (selectedFile.file instanceof File) {
-
-        console.log(
-          "UPLOADING FILE FROM OBJECT..."
-        );
-
-        const uploadData =
-          await uploadDocument(
-            selectedFile.file
-          );
-
-        console.log(
-          "PDF UPLOAD SUCCESS:",
-          uploadData
-        );
-
-        documentId =
-          uploadData.document_id;
-
-        setSelectedFile({
-          ...selectedFile,
-          documentId: documentId,
-        });
-      }
+      console.log(
+        "USING EXISTING DOCUMENT ID:",
+        documentId
+      );
     }
 
     console.log(
@@ -1284,25 +1223,18 @@ const sendMessage = async (customMessage = null) => {
       documentId
     );
 
-    /*
-     * STEP 2
-     * Send question + document ID to Django
-     */
-    const data =
-      await sendChatMessage(
-        userText,
-        documentId
-      );
+    // Send question + document ID to Django
+    const data = await sendChatMessage(
+      userText,
+      documentId
+    );
 
     console.log(
       "CHAT RESPONSE:",
       data
     );
 
-    /*
-     * STEP 3
-     * Show AI response
-     */
+    // Show AI response
     setMessages((previous) => [
       ...previous,
       {
@@ -1340,6 +1272,7 @@ const sendMessage = async (customMessage = null) => {
   } finally {
 
     setIsTyping(false);
+
   }
 };
 
@@ -1430,42 +1363,110 @@ const handleFileSelect = async (event) => {
         event.target.value = "";
     }
 };
-const handleFileChange = (event) => {
+const handleFileChange = async (event) => {
 
-  const file =
-    event.target.files?.[0];
+  const file = event.target.files?.[0];
 
   if (!file) {
     return;
   }
 
-  console.log(
-    "FILE SELECTED:",
-    file.name
-  );
+  console.log("SELECTED FILE:", file.name);
 
-  if (file.type !== "application/pdf") {
+  // Supported file extensions
+  const supportedExtensions = [
+    ".pdf",
+    ".docx",
+    ".xlsx",
+    ".xlsm",
+    ".pptx",
+    ".txt",
+    ".csv",
+  ];
+
+  const fileName = file.name.toLowerCase();
+
+  const isSupported =
+    supportedExtensions.some(
+      (extension) =>
+        fileName.endsWith(extension)
+    );
+
+  if (!isSupported) {
 
     alert(
-      "Currently only PDF files are supported."
+      "Unsupported file type.\n\nSupported files: PDF, DOCX, XLSX, XLSM, PPTX, TXT, CSV"
     );
+
+    event.target.value = "";
 
     return;
   }
 
-  // Store actual File object
-  setSelectedFile(file);
+  try {
 
-  setMessages((previous) => [
-    ...previous,
-    {
-      id: Date.now(),
-      sender: "assistant",
-      type: "text",
-      text:
-        `"${file.name}" is attached. Ask me anything about this document.`,
-    },
-  ]);
+    setIsTyping(true);
+
+    console.log(
+      "UPLOADING DOCUMENT..."
+    );
+
+    // Upload immediately
+    const data =
+      await uploadDocument(file);
+
+    console.log(
+      "DOCUMENT UPLOADED:",
+      data
+    );
+
+    // Store file + document ID
+    setSelectedFile({
+      file: file,
+      name: data.file_name,
+      documentId: data.document_id,
+    });
+
+    // Show success message
+    setMessages((previous) => [
+      ...previous,
+      {
+        id: Date.now(),
+        sender: "assistant",
+        type: "text",
+        text:
+          `I've successfully read **${data.file_name}**.\n\n` +
+          `You can now ask me questions about this document.`,
+      },
+    ]);
+
+  } catch (error) {
+
+    console.error(
+      "DOCUMENT UPLOAD ERROR:",
+      error
+    );
+
+    setSelectedFile(null);
+
+    setMessages((previous) => [
+      ...previous,
+      {
+        id: Date.now(),
+        sender: "assistant",
+        type: "text",
+        text:
+          `I couldn't read **${file.name}**.\n\n` +
+          `Please check the file and try again.`,
+      },
+    ]);
+
+  } finally {
+
+    setIsTyping(false);
+
+    event.target.value = "";
+  }
 };
 
 
@@ -1843,10 +1844,12 @@ const handleFileChange = (event) => {
         <>
 
           <div className="nova-message-text">
-
-            {item.text}
-
-          </div>
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+  >
+    {item.text}
+  </ReactMarkdown>
+</div>
 
 
           {item.type ===
@@ -2222,6 +2225,40 @@ const handleFileChange = (event) => {
 
       )}
 
+      {/* DOCUMENT SUGGESTIONS */}
+
+{selectedFile &&
+  documentSuggestions.length > 0 && (
+
+    <div className="nova-document-suggestions">
+
+      <div className="nova-document-suggestions-title">
+        Ask Nova about this document
+      </div>
+
+      <div className="nova-document-suggestions-list">
+
+        {documentSuggestions.map(
+          (suggestion) => (
+
+            <button
+              key={suggestion}
+              onClick={() =>
+                sendMessage(suggestion)
+              }
+            >
+              {suggestion}
+            </button>
+
+          )
+        )}
+
+      </div>
+
+    </div>
+
+)}
+
 
       {/* INPUT */}
 
@@ -2231,7 +2268,7 @@ const handleFileChange = (event) => {
   ref={fileInputRef}
   type="file"
   hidden
-  accept=".pdf,application/pdf"
+  accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.txt,.csv"
   onChange={handleFileChange}
 />
 

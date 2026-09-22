@@ -2145,6 +2145,80 @@ a {
   font-weight: 600;
 }
 
+.nova-message-text {
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.nova-message-text h1,
+.nova-message-text h2,
+.nova-message-text h3 {
+  margin: 14px 0 8px;
+  font-weight: 700;
+}
+
+.nova-message-text h2 {
+  font-size: 18px;
+}
+
+.nova-message-text h3 {
+  font-size: 15px;
+}
+
+.nova-message-text p {
+  margin: 7px 0;
+}
+
+.nova-message-text ul,
+.nova-message-text ol {
+  margin: 8px 0;
+  padding-left: 22px;
+}
+
+.nova-message-text li {
+  margin: 4px 0;
+}
+
+.nova-message-text strong {
+  font-weight: 700;
+}
+
+.nova-message-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 12px;
+}
+
+.nova-message-text th,
+.nova-message-text td {
+  border: 1px solid #d9dee8;
+  padding: 7px 8px;
+  text-align: left;
+}
+
+.nova-message-text th {
+  font-weight: 700;
+}
+
+.nova-message-text code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}
+
+.nova-message-text pre {
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.nova-message-text pre code {
+  padding: 0;
+}
+
 /* ================================
    FILE
 ================================ */

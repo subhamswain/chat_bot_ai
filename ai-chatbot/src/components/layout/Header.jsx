@@ -73,7 +73,7 @@ function Header({
 
             <strong>
               {isLoggedIn
-                ? "Satyabrata Bagha"
+                ? "Subham Swain"
                 : "Guest User"}
             </strong>
 

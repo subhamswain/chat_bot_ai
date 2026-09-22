@@ -9,3 +9,15 @@ class Document(models.Model):
 
     def __str__(self):
         return self.file_name
+    
+class DocumentChunk(models.Model):
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name="chunks"
+    )
+    chunk_index = models.IntegerField()
+    content = models.TextField()
+
+    def __str__(self):
+        return f"{self.document.file_name} - Chunk {self.chunk_index}"
